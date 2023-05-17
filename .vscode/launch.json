@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "name": "vscode-jest-tests.v2",
+      "runtimeArgs": ["--experimental-vm-modules"],
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "cwd": "c:\\Users\\Ailin\\dev\\Scribe\\scribeAuthNode",
+      "program": "${workspaceFolder}\\node_modules\\jest\\bin\\jest",
+      "args": [
+        "--runInBand",
+        "--watchAll=false",
+        "—no-cache",
+        "--injectGlobals=false",
+        "--testNamePattern",
+        "${jest.testNamePattern}",
+        "--runTestsByPath",
+        "${jest.testFile}"
+      ]
+    }
+  ]
+}

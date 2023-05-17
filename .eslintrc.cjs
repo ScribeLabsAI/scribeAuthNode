@@ -15,7 +15,6 @@ module.exports = {
     'plugin:promise/recommended',
   ],
   rules: {
-    'no-secrets/no-secrets': ['error', { ignoreContent: '^abcd' }],
     'unicorn/prevent-abbreviations': 'off',
     'unicorn/no-keyword-prefix': 'off',
     'unicorn/catch-error-name': ['error', { name: 'err' }],
