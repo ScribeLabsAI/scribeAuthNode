@@ -3,6 +3,21 @@ import AWS from 'aws-sdk';
 
 AWS.config.update({ region: 'eu-west-2' });
 
+interface UsernamePassword {
+  username: string;
+  password: string;
+}
+
+interface RefreshToken {
+  refreshToken: string;
+}
+
+interface Tokens {
+  refreshToken: string;
+  accessToken: string;
+  idToken: string;
+}
+
 class UnauthorizedError extends Error {
   constructor(message: string) {
     super(message);
@@ -43,17 +58,7 @@ class ScribeAuth {
     @returns A boolean indicating the success of the password update.
     */
     try {
-      const responseInitiate = await this.client.initiateAuth({
-        AuthFlow: 'USER_PASSWORD_AUTH',
-        ClientId: this.clientId,
-        AuthParameters: {
-          USERNAME: username,
-          PASSWORD: password,
-        },
-        ClientMetadata: {
-          newPassword,
-        },
-      });
+      const responseInitiate = await this.initiateAuthFlow(username, password);
       const challengeName = responseInitiate.ChallengeName;
       if (challengeName) {
         const session = responseInitiate.Session!;
@@ -121,6 +126,67 @@ class ScribeAuth {
       );
     }
   }
+
+  async getTokens(param: UsernamePassword | RefreshToken): Promise<Tokens> {
+    /**
+     * A user gets their tokens (refresh_token, access_token, and id_token).
+     *
+     * @param username - Username (usually an email address).
+     * @param password - Password associated with this username.
+     *                   OR
+     * @param refresh_token - Refresh token to use.
+     * @returns Tokens - Object containing the refresh_token, access_token, and id_token.
+     *                   { "refresh_token": string, "access_token": string, "id_token": string }
+     */
+    const authResult = 'AuthenticationResult';
+    if ('username' in param && 'password' in param) {
+      const { username, password } = param;
+      try {
+        const response = await this.initiateAuthFlow(username, password);
+        const result = response[authResult];
+        return {
+          refreshToken: result?.RefreshToken ?? '',
+          accessToken: result?.AccessToken ?? '',
+          idToken: result?.IdToken ?? '',
+        };
+      } catch {
+        throw new UnauthorizedError('Username and/or Password are incorrect. Could not get tokens');
+      }
+    } else {
+      try {
+        const response = await this.getTokensFromRefresh(param.refreshToken);
+        const result = response[authResult];
+        return {
+          refreshToken: param.refreshToken,
+          accessToken: result?.AccessToken ?? '',
+          idToken: result?.IdToken ?? '',
+        };
+      } catch {
+        throw new UnauthorizedError('RefreshToken is incorrect. Could not get tokens');
+      }
+    }
+  }
+
+  private async initiateAuthFlow(username: string, password: string) {
+    return await this.client.initiateAuth({
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: this.clientId,
+      AuthParameters: {
+        USERNAME: username,
+        PASSWORD: password,
+      },
+    });
+  }
+
+  private async getTokensFromRefresh(refreshToken: string) {
+    return await this.client.initiateAuth({
+      ClientId: this.clientId,
+      AuthFlow: 'REFRESH_TOKEN',
+      AuthParameters: {
+        REFRESH_TOKEN: refreshToken,
+      },
+    });
+  }
 }
 
-export { ScribeAuth };
+export { ScribeAuth, Tokens, UnauthorizedError, TooManyRequestsError };
