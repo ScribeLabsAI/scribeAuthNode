@@ -3,10 +3,10 @@ import AWS from 'aws-sdk';
 
 AWS.config.update({ region: 'eu-west-2' });
 
-class UnauthorizedExceptionError extends Error {
+class UnauthorizedError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'UnauthorizedExceptionError';
+    this.name = 'UnauthorizedError';
   }
 }
 
@@ -22,6 +22,12 @@ class ScribeAuth {
   private clientId: string;
 
   constructor(clientId: string) {
+    /**
+     * Construct an authorization client.
+     *
+     * @param client_id - The client ID of the application provided by Scribe.
+     */
+
     this.client = new CognitoIdentityServiceProvider({
       region: 'eu-west-2',
     });
@@ -67,6 +73,7 @@ class ScribeAuth {
               newPassword,
             },
           });
+          return true;
         } catch {
           throw new Error('InternalServerError: try again later');
         }
@@ -79,6 +86,7 @@ class ScribeAuth {
             PreviousPassword: password,
             ProposedPassword: newPassword,
           });
+          return true;
         } catch {
           throw new TooManyRequestsError(
             'Password has been changed too many times. Try again later'
@@ -86,7 +94,31 @@ class ScribeAuth {
         }
       }
     } catch {
-      throw new UnauthorizedExceptionError('Username and/or Password are incorrect');
+      throw new UnauthorizedError('Username and/or Password are incorrect');
+    }
+  }
+
+  async forgotPassword(username: string, password: string, confirmationCode: string) {
+    /**
+     * Allows a user to enter a confirmation code sent to their email to reset a forgotten password.
+     *
+     * @param username - Username (usually an email address).
+     * @param password - Password associated with this username.
+     * @param confirmation_code - Confirmation code sent to the user's email.
+     * @returns A boolean indicating the success of the password reset.
+     */
+    try {
+      await this.client.confirmForgotPassword({
+        ClientId: this.clientId,
+        Username: username,
+        ConfirmationCode: confirmationCode,
+        Password: password,
+      });
+      return true;
+    } catch {
+      throw new UnauthorizedError(
+        'Username, Password and/or Confirmation_code are incorrect. Could not reset password'
+      );
     }
   }
 }
