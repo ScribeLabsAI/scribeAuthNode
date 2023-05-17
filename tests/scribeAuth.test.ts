@@ -14,11 +14,34 @@ const password = data['PASSWORD']!;
 const access = new ScribeAuth(clientId);
 
 describe('Get tokens', () => {
-  test('Username and password successfully', async () => {
+  test('Username and password passes', async () => {
     const tokens = await access.getTokens({ username, password });
     expect(assertTokens(tokens)).toBeTruthy();
   });
-  // TODO: add more tests (wrong username, wrong password, empty username, empty password, empty username and password, right refresh token, wrong refresh token)
+  test('Wrong username fails', async () => {
+    await expect(access.getTokens({ username: 'username', password })).rejects.toThrow();
+  });
+  test('Wrong password fails', async () => {
+    await expect(access.getTokens({ username, password: 'password' })).rejects.toThrow();
+  });
+
+  test('Empty username fails', async () => {
+    await expect(access.getTokens({ username: '', password })).rejects.toThrow();
+  });
+  test('Empty password fails', async () => {
+    await expect(access.getTokens({ username, password: '' })).rejects.toThrow();
+  });
+  test('Empty username and password fails', async () => {
+    await expect(access.getTokens({ username: '', password: '' })).rejects.toThrow();
+  });
+  test('RefreshToken passes', async () => {
+    const refreshToken = await getRefreshToken();
+    const tokens = await access.getTokens({ refreshToken });
+    expect(assertTokens(tokens)).toBeTruthy();
+  });
+  test('Wrong refreshToken fails', async () => {
+    await expect(access.getTokens({ refreshToken: 'refresh_token' })).rejects.toThrow();
+  });
 });
 
 function assertTokens(tokens: Tokens): boolean {
@@ -30,4 +53,9 @@ function assertTokens(tokens: Tokens): boolean {
     tokens.accessToken !== tokens.refreshToken &&
     tokens.idToken !== tokens.refreshToken
   );
+}
+
+async function getRefreshToken() {
+  const tokens = await access.getTokens({ username, password });
+  return tokens.refreshToken;
 }
