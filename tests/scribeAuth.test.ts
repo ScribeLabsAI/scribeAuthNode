@@ -44,6 +44,14 @@ describe('Get tokens', () => {
   });
 });
 
+// RevokeToken is not working yet and we're working on it.
+// describe('Revoke', () => {
+//   test('Real RefreshToken and passes', async () => {
+//     const refreshToken = await getRefreshToken();
+//     expect(await access.revokeRefreshToken(refreshToken)).toBeTruthy();
+//   });
+// });
+
 function assertTokens(tokens: Tokens): boolean {
   return (
     !!tokens.accessToken &&
