@@ -29,6 +29,6 @@ module.exports = {
     'unicorn/filename-case': ['error', { case: 'camelCase' }],
   },
   parserOptions: {
-    project: ['./tsconfig.json', './tests/tsconfig.json'],
+    project: ['./tsconfig.json', './tests/tsconfig.json', './bin/tsconfig.json'],
   },
 };

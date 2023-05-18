@@ -6,11 +6,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "bin/dist/**"
   ],
+  "bin": {
+    "extract": "bin/dist/main.js"
+  },
   "sideEffects": false,
   "scripts": {
     "build:lib": "tsc",
+    "build:bin": "cd ./bin && tsc",
     "message": "git config commit.template .gitmessage",
     "check": "tsc --noEmit",
     "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest --injectGlobals false --logHeapUsage --silent false --passWithNoTests",
@@ -43,7 +48,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.332.0",
+    "@jest/globals": "^29.5.0",
     "aws-sdk": "^2.1379.0",
+    "commander": "^10.0.1",
     "dotenv": "^16.0.3"
   }
 }
