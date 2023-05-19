@@ -80,13 +80,12 @@ class ScribeAuth {
             ClientId: this.clientId,
             ChallengeName: challengeName,
             ChallengeResponses: {
-              USERNAME: username,
-              NEW_PASSWORD: newPassword,
-              USER_ID_FOR_SRP: userIdSRP!,
-              requiredAttributes: requiredAttributes ?? '',
-            },
-            ClientMetadata: {
+              username,
               newPassword,
+              userIdSRP: userIdSRP!,
+              ...(requiredAttributes && {
+                requiredAttributes: requiredAttributes,
+              }),
             },
           });
           return true;
