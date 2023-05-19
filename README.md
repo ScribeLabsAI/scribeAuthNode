@@ -1,4 +1,4 @@
-# Scribe Auth
+# Scribe Auth Node
 
 Most calls to Scribe's API require authentication and authorization. This library simplifies this process.
 
@@ -8,17 +8,21 @@ This library interacts directly with our authentication provider [AWS Cognito](h
 
 ## Installation
 
-From command line
+Add the dependency to your package.json and save it:
 
-```bash
-npm install @scribelabsai/scribe_auth_node@1.0.0
+```
+"dependencies": {
+	"@scribelabsai/scribe_auth_node": ">=1.0.0"
+}
 ```
 
-From package.json
+Install it from command line:
 
-```bash
-"@scribelabsai/scribe_auth_node": "1.0.0"
 ```
+npm install
+```
+
+## Requirements
 
 This library requires Node.js >= 16.20.0
 
@@ -27,7 +31,7 @@ This library requires Node.js >= 16.20.0
 ### 1. Changing password
 
 ```javascript
-import { ScribeAuth, Tokens } from '../dist/auth/scribeAuth.js';
+import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
 const access = new ScribeAuth(clientId);
 access.changePassword('username', 'password', 'newPassword');
 ```
@@ -35,7 +39,7 @@ access.changePassword('username', 'password', 'newPassword');
 ### 2. Recovering an account in case of forgotten password
 
 ```javascript
-import { ScribeAuth, Tokens } from '../dist/auth/scribeAuth.js';
+import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
 const access = new ScribeAuth(clientId);
 access.forgotPassword('username', 'password', 'confirmationCode');
 ```
@@ -45,7 +49,7 @@ access.forgotPassword('username', 'password', 'confirmationCode');
 ##### With username and password
 
 ```javascript
-import { ScribeAuth, Tokens } from '../dist/auth/scribeAuth.js';
+import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
 const access = new ScribeAuth(clientId);
 access.getTokens({ username: 'username', password: 'password' });
 ```
@@ -53,7 +57,7 @@ access.getTokens({ username: 'username', password: 'password' });
 ##### With refresh token
 
 ```javascript
-import { ScribeAuth, Tokens } from '../dist/auth/scribeAuth.js';
+import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
 const access = new ScribeAuth(clientId);
 access.getTokens({ refreshToken: 'refreshToken' });
 ```
