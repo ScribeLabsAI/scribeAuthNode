@@ -83,7 +83,7 @@ class ScribeAuth {
               USERNAME: username,
               NEW_PASSWORD: newPassword,
               USER_ID_FOR_SRP: userIdSRP!,
-              REQUIRED_ATTRIBUTES: requiredAttributes ?? '',
+              requiredAttributes: requiredAttributes!,
             },
             ClientMetadata: {
               newPassword,
