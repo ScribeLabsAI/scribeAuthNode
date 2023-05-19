@@ -73,6 +73,7 @@ class ScribeAuth {
         const session = responseInitiate.Session;
         const challengeParams = responseInitiate.ChallengeParameters;
         const userIdSRP = challengeParams?.['USER_ID_FOR_SRP'];
+        const requiredAttributes = challengeParams?.['REQUIRED_ATTRIBUTES'];
         try {
           await this.client.respondToAuthChallenge({
             Session: session!,
@@ -82,6 +83,7 @@ class ScribeAuth {
               USERNAME: username,
               NEW_PASSWORD: newPassword,
               USER_ID_FOR_SRP: userIdSRP!,
+              REQUIRED_ATTRIBUTES: requiredAttributes ?? '',
             },
             ClientMetadata: {
               newPassword,
