@@ -1,18 +1,9 @@
 export default {
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',
+  collectCoverage: true,
   testEnvironment: 'node',
-  // preset: 'ts-jest/presets/default-esm', TODO: check when https://github.com/kulshekhar/ts-jest/issues/3800 lands
-  extensionsToTreatAsEsm: ['.ts'],
-  transform: {
-    '^.+\\.ts$': [
-      'ts-jest',
-      {
-        useESM: true,
-        isolatedModules: true,
-      },
-    ],
-  },
+  preset: 'ts-jest/presets/default-esm',
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
