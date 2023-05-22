@@ -1,17 +1,15 @@
 {
-  "name": "@scribelabsai/scribe_auth_node",
+  "name": "@scribelabsai/auth",
   "version": "1.0.0",
   "description": "Library to connect to Scribe's platform.",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist/**/*",
     "bin/dist/**"
   ],
-  "bin": {
-    "extract": "bin/dist/main.js"
-  },
+  "exports": "./dist/index.js",
   "sideEffects": false,
   "scripts": {
     "build:lib": "tsc",
@@ -23,10 +21,7 @@
     "changelog": "git log --pretty=\"format:%s\" --decorate=no $(git describe --tags --abbrev=0 @^)..@ > Changelog.md"
   },
   "author": "Ailín Venerus <ailin@scribelabs.ai>",
-  "license": "UNLICENSED",
-  "repository": {
-    "url": "git://github.com/scribelabsai/scribeAuthNode.git"
-  },
+  "license": "MIT License",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },

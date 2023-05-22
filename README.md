@@ -12,7 +12,7 @@ Add the dependency to your package.json and save it:
 
 ```
 "dependencies": {
-	"@scribelabsai/scribe_auth_node": ">=1.0.0"
+	"@scribelabsai/auth": ">=1.0.0"
 }
 ```
 
@@ -31,16 +31,16 @@ This library requires Node.js >= 16.20.0
 ### 1. Changing password
 
 ```javascript
-import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
-const access = new ScribeAuth(clientId);
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth(clientId);
 access.changePassword('username', 'password', 'newPassword');
 ```
 
 ### 2. Recovering an account in case of forgotten password
 
 ```javascript
-import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
-const access = new ScribeAuth(clientId);
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth(clientId);
 access.forgotPassword('username', 'password', 'confirmationCode');
 ```
 
@@ -49,16 +49,16 @@ access.forgotPassword('username', 'password', 'confirmationCode');
 ##### With username and password
 
 ```javascript
-import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
-const access = new ScribeAuth(clientId);
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth(clientId);
 access.getTokens({ username: 'username', password: 'password' });
 ```
 
 ##### With refresh token
 
 ```javascript
-import { ScribeAuth, Tokens } from '@scribelabsai/scribe_auth_node';
-const access = new ScribeAuth(clientId);
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth(clientId);
 access.getTokens({ refreshToken: 'refreshToken' });
 ```
 
@@ -76,4 +76,4 @@ access.getTokens({ refreshToken: 'refreshToken' });
 
 ---
 
-To flag an issue, open a ticket on [Github](https://github.com/ScribeLabsAI/ScribeAuth/issues) and contact us on Intercom through the platform.
+To flag an issue, open a ticket on [Github](https://github.com/ScribeLabsAI/ScribeAuthNode/issues) and contact us on Intercom through the platform.

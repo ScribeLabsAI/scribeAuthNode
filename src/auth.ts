@@ -22,9 +22,10 @@ class UnauthorizedError extends Error {
   Username and/or Password are incorrect.
   Refresh token is incorrect.
   */
-  constructor(message: string) {
+  constructor(message: string, { cause }: { cause?: Error } = {}) {
     super(message);
     this.name = 'UnauthorizedError';
+    this.cause = cause;
   }
 }
 
@@ -35,13 +36,14 @@ class TooManyRequestsError extends Error {
   Changing a password.
   Revoking a refresh token.
   */
-  constructor(message: string) {
+  constructor(message: string, { cause }: { cause?: Error } = {}) {
     super(message);
     this.name = 'TooManyRequestsError';
+    this.cause = cause;
   }
 }
 
-class ScribeAuth {
+class Auth {
   private client: CognitoIdentityProvider;
   private clientId: string;
 
@@ -73,7 +75,7 @@ class ScribeAuth {
         const session = responseInitiate.Session;
         const challengeParams = responseInitiate.ChallengeParameters;
         const userIdSRP = challengeParams?.['USER_ID_FOR_SRP'];
-        const requiredAttributes = challengeParams?.['REQUIRED_ATTRIBUTES'];
+        const requiredAttributes = challengeParams?.['requiredAttributes'];
         try {
           await this.client.respondToAuthChallenge({
             Session: session!,
@@ -89,8 +91,8 @@ class ScribeAuth {
             },
           });
           return true;
-        } catch {
-          throw new Error('InternalServerError: try again later');
+        } catch (err) {
+          throw new Error('InternalServerError: try again later', { cause: err });
         }
       } else {
         try {
@@ -102,14 +104,17 @@ class ScribeAuth {
             ProposedPassword: newPassword,
           });
           return true;
-        } catch {
+        } catch (err) {
           throw new TooManyRequestsError(
-            'Password has been changed too many times. Try again later'
+            'Password has been changed too many times. Try again later',
+            { cause: err as Error }
           );
         }
       }
-    } catch {
-      throw new UnauthorizedError('Username and/or Password are incorrect');
+    } catch (err) {
+      throw new UnauthorizedError('Username and/or Password are incorrect', {
+        cause: err as Error,
+      });
     }
   }
 
@@ -130,9 +135,10 @@ class ScribeAuth {
         Password: password,
       });
       return true;
-    } catch {
+    } catch (err) {
       throw new UnauthorizedError(
-        'Username, Password and/or Confirmation_code are incorrect. Could not reset password'
+        'Username, Password and/or Confirmation_code are incorrect. Could not reset password',
+        { cause: err as Error }
       );
     }
   }
@@ -159,8 +165,11 @@ class ScribeAuth {
           accessToken: result?.AccessToken ?? '',
           idToken: result?.IdToken ?? '',
         };
-      } catch {
-        throw new UnauthorizedError('Username and/or Password are incorrect. Could not get tokens');
+      } catch (err) {
+        throw new UnauthorizedError(
+          'Username and/or Password are incorrect. Could not get tokens',
+          { cause: err as Error }
+        );
       }
     } else {
       try {
@@ -171,8 +180,10 @@ class ScribeAuth {
           accessToken: result?.AccessToken ?? '',
           idToken: result?.IdToken ?? '',
         };
-      } catch {
-        throw new UnauthorizedError('RefreshToken is incorrect. Could not get tokens');
+      } catch (err) {
+        throw new UnauthorizedError('RefreshToken is incorrect. Could not get tokens', {
+          cause: err as Error,
+        });
       }
     }
   }
@@ -235,4 +246,4 @@ class ScribeAuth {
   }
 }
 
-export { ScribeAuth, Tokens, UnauthorizedError, TooManyRequestsError };
+export { Auth, Tokens, UnauthorizedError, TooManyRequestsError };

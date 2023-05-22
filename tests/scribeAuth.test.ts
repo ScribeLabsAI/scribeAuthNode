@@ -1,17 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
+import { Auth, Tokens } from '@scribelabsai/auth';
 import * as dotenv from 'dotenv';
-import { readFile } from 'node:fs/promises';
-import { ScribeAuth, Tokens } from '../dist/auth/scribeAuth.js';
 
 dotenv.config();
 
-const content = await readFile('./tests/.env', 'utf8');
-const buffer = Buffer.from(content);
-const data = dotenv.parse(buffer);
-const clientId = data['CLIENT_ID']!;
-const username = data['USER']!;
-const password = data['PASSWORD']!;
-const access = new ScribeAuth(clientId);
+const clientId = process.env['CLIENT_ID']!;
+const username = process.env['USER']!;
+const password = process.env['PASSWORD']!;
+const access = new Auth(clientId);
 
 describe('Get tokens', () => {
   test('Username and password passes', async () => {
