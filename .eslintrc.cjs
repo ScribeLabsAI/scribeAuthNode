@@ -27,6 +27,7 @@ module.exports = {
     'unicorn/no-array-callback-reference': 'off',
     'unicorn/import-index': ['error', { ignoreImports: true }],
     'unicorn/filename-case': ['error', { case: 'camelCase' }],
+    'sonarjs/no-duplicate-string': ['error', { threshold: 5 }],
   },
   parserOptions: {
     project: ['./tsconfig.json', './tests/tsconfig.json', './bin/tsconfig.json'],
