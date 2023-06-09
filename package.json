@@ -26,7 +26,7 @@
   "author": "Ailín Venerus <ailin@scribelabs.ai>",
   "license": "MIT License",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@types/node": "^20.1.0",
