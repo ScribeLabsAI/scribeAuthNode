@@ -66,6 +66,42 @@ access.getTokens({ refreshToken: 'refreshToken' });
 
 #### Disclaimer: revokeToken(refreshToken) is not ready yet, you may use our [Python lib](https://github.com/ScribeLabsAI/ScribeAuth) or call AWS services directly.
 
+### 5. Getting federated id
+
+```javascript
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth({
+  clientId: your_client_id,
+  userPoolId: your_user_pool_id,
+  identityPoolId: your_identity_pool_id,
+});
+access.getFederatedId(your_id_token);
+```
+
+### 6. Getting federated credentials
+
+```javascript
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth({
+  clientId: your_client_id,
+  userPoolId: your_user_pool_id,
+  identityPoolId: your_identity_pool_id,
+});
+access.getFederatedCredentials(your_federated_id, your_id_token);
+```
+
+### 7. Getting signature for request
+
+```javascript
+import { Auth, Tokens } from '@scribelabsai/auth';
+const access = new Auth({
+  clientId: your_client_id,
+  userPoolId: your_user_pool_id,
+  identityPoolId: your_identity_pool_id,
+});
+access.getSignatureForRequest(your_request, your_credentials);
+```
+
 ## Flow
 
 - If you never have accessed your Scribe account, it probably still contains the temporary password we generated for you. You can change it directly on the [platform](https://platform.scribelabs.ai) or with the `changePassword` method. You won't be able to access anything else until the temporary password has been changed.
@@ -73,6 +109,10 @@ access.getTokens({ refreshToken: 'refreshToken' });
 - Once the account is up and running, you can request new tokens with `getTokens`. You will initially have to provide your username and password. The access and id tokens are valid for up to 30 minutes. The refresh token is valid for 30 days.
 
 - While you have a valid refresh token, you can request fresh access and id tokens with `getTokens` but using the refresh token this time, so you're not sending your username and password over the wire anymore.
+
+- You can get your federated id by using `getFederatedId` and providing your id token. The federated id will allow you to use `getFederatedCredentials` to get an access key id, secret key and session token.
+
+- Every API call to be made to Scribe's API Gateway needs to have a signature. You can get the signature for your request by using `getSignatureForRequest`. Provide the request you'll be using and your credentials (use `getFederatedCredentials` to get them).
 
 ---
 
