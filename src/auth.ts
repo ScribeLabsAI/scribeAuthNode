@@ -1,3 +1,4 @@
+import { Sha256 } from '@aws-crypto/sha256-js';
 import {
   CognitoIdentityClient,
   GetCredentialsForIdentityCommand,
@@ -11,6 +12,8 @@ import {
   InitiateAuthCommandOutput,
   UnauthorizedException,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { HttpRequest } from '@aws-sdk/protocol-http';
+import { SignatureV4 } from '@aws-sdk/signature-v4';
 import { MissingIdError, TooManyRequestsError, UnauthorizedError, UnknownError } from './errors.js';
 
 export interface UsernamePassword {
@@ -38,7 +41,7 @@ export interface Credentials {
 function isCompleteCredentials(
   cred: GetCredentialsForIdentityCommandOutput['Credentials']
 ): cred is Credentials {
-  return !!cred?.AccessKeyId && !!cred.SecretKey && !!cred.SessionToken;
+  return !!cred?.AccessKeyId && !!cred.SecretKey && !!cred.SessionToken && !!cred.Expiration;
 }
 
 export class Auth {
@@ -218,6 +221,12 @@ export class Auth {
   }
 
   async getFederatedId(idToken: string): Promise<string> {
+    /**
+     * A user gets their federated id.
+     *
+     * @param idToken - Id token to use.
+     * @returns A string containing the federatedId.
+     */
     if (!this.userPoolId) throw new MissingIdError('Missing user pool ID');
     if (!this.identityPoolId) throw new MissingIdError('Missing federated pool ID');
     try {
@@ -241,6 +250,14 @@ export class Auth {
   }
 
   async getFederatedCredentials(id: string, idToken: string): Promise<Credentials> {
+    /**
+     * A user gets their federated credentials (AccessKeyId, SecretKey and SessionToken).
+     *
+     * @param id - Federated id.
+     * @param idToken - Id token to use.
+     * @returns Credentials - Object containing the AccessKeyId, SecretKey, SessionToken and Expiration.
+     *                   { "AccessKeyId": string, "SecretKey": string, "SessionToken": string, "Expiration": string }
+     */
     if (!this.userPoolId) throw new MissingIdError('Missing user pool ID');
     try {
       const response = await this.fedClient.send(
@@ -259,6 +276,32 @@ export class Auth {
         throw new UnauthorizedError('Could not retrieve federated credentials', err);
       else if (err instanceof TooManyRequestsException)
         throw new TooManyRequestsError('Too many requests. Try again later');
+      throw err;
+    }
+  }
+
+  async getSignatureForRequest(request: HttpRequest, credentials: Credentials) {
+    /**
+     * A user gets a signature for a request.
+     *
+     * @param request - Request to send.
+     * @param credentials - Credentials for the signature creation.
+     * @returns HeaderBag - Headers containing the signature for the request.
+     */
+    try {
+      const signer = new SignatureV4({
+        credentials: {
+          accessKeyId: credentials.AccessKeyId,
+          secretAccessKey: credentials.SecretKey,
+          sessionToken: credentials.SessionToken,
+        },
+        service: 'execute-api',
+        region: 'eu-west-2',
+        sha256: Sha256,
+      });
+      const signatureRequest = await signer.sign(request);
+      return signatureRequest.headers;
+    } catch (err) {
       throw err;
     }
   }

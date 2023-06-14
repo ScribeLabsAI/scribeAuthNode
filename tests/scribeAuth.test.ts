@@ -1,3 +1,4 @@
+import { HttpRequest } from '@aws-sdk/protocol-http';
 import { describe, expect, test } from '@jest/globals';
 import { Auth, Tokens } from '@scribelabsai/auth';
 import * as dotenv from 'dotenv';
@@ -5,9 +6,18 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const clientId = process.env['CLIENT_ID']!;
+const clientId2 = process.env['CLIENT_ID2']!;
 const username = process.env['USER']!;
 const password = process.env['PASSWORD']!;
+const password2 = process.env['PASSWORD2']!;
+const userPoolId = process.env['USER_POOL_ID']!;
+const federatedPoolId = process.env['FEDERATED_POOL_ID']!;
 const access = new Auth(clientId);
+const poolAccess = new Auth({
+  clientId: clientId2,
+  userPoolId: userPoolId,
+  identityPoolId: federatedPoolId,
+});
 
 describe('Get tokens', () => {
   test('Username and password passes', async () => {
@@ -37,6 +47,52 @@ describe('Get tokens', () => {
   });
   test('Wrong refreshToken fails', async () => {
     await expect(access.getTokens({ refreshToken: 'refresh_token' })).rejects.toThrow();
+  });
+});
+
+describe('Federated Credentials', () => {
+  test('Get federated id passes', async () => {
+    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const idToken = tokens.idToken;
+    const federatedId = await poolAccess.getFederatedId(idToken);
+    expect(federatedId).toBeDefined();
+  });
+  test('Get federated id fails', async () => {
+    await expect(poolAccess.getFederatedId('idToken')).rejects.toThrow();
+  });
+
+  test('Get credentials passes', async () => {
+    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const idToken = tokens.idToken;
+    const federatedId = await poolAccess.getFederatedId(idToken);
+    const credentials = await poolAccess.getFederatedCredentials(federatedId, idToken);
+    expect(credentials).toBeDefined();
+    expect(credentials.AccessKeyId).toBeDefined();
+    expect(credentials.SecretKey).toBeDefined();
+    expect(credentials.SessionToken).toBeDefined();
+    expect(credentials.Expiration).toBeDefined();
+  });
+  test('Get credentials fails', async () => {
+    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const idToken = tokens.idToken;
+    await expect(poolAccess.getFederatedCredentials('id', idToken)).rejects.toThrow();
+  });
+});
+
+describe('Get Signature for requests', () => {
+  test('Passes', async () => {
+    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const idToken = tokens.idToken;
+    const federatedId = await poolAccess.getFederatedId(idToken);
+    const credentials = await poolAccess.getFederatedCredentials(federatedId, idToken);
+    const url: URL = new URL('https://google.com');
+    const request = new HttpRequest({
+      hostname: url.hostname,
+      path: url.pathname,
+      method: 'GET',
+    });
+    const signature = await poolAccess.getSignatureForRequest(request, credentials);
+    expect(signature).toBeDefined();
   });
 });
 
