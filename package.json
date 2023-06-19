@@ -48,6 +48,7 @@
     "@aws-sdk/client-cognito-identity": "^3.348.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.332.0",
     "@jest/globals": "^29.5.0",
+    "amazon-cognito-identity-js": "^6.2.0",
     "aws-sdk": "^2.1379.0",
     "commander": "^11.0.0",
     "dotenv": "^16.0.3"
