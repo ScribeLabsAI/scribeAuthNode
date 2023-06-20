@@ -10,10 +10,10 @@ import {
 import {
   CognitoIdentityProvider,
   InitiateAuthCommandOutput,
-  UnauthorizedException,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { HttpRequest } from '@aws-sdk/protocol-http';
 import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { AuthenticationDetails, CognitoUser, CognitoUserPool } from 'amazon-cognito-identity-js';
 import { MissingIdError, TooManyRequestsError, UnauthorizedError, UnknownError } from './errors.js';
 
 export interface UsernamePassword {
@@ -46,18 +46,11 @@ function isCompleteCredentials(
 
 export class Auth {
   private client: CognitoIdentityProvider;
-  private fedClient: CognitoIdentityClient;
-  private clientId: string | undefined;
-  private userPoolId: string | undefined;
+  private fedClient: CognitoIdentityClient | undefined;
+  private clientId: string;
+  private userPoolId: string;
   private identityPoolId: string | undefined;
 
-  /**
-   * Construct an authorization client.
-   *
-   * @param client_id - The client ID of the application provided by Scribe.
-   * @deprecated Use the constructor with an object instead.
-   */
-  constructor(clientId: string);
   /**
    * Construct an authorization client.
    * @param params - The parameters to construct the client.
@@ -65,27 +58,26 @@ export class Auth {
    * @param params.userPoolId - The user pool ID provided by Scribe.
    * @param params.identityPoolId - The identity pool ID provided by Scribe.
    */
-  constructor(params: { clientId?: string; userPoolId?: string; identityPoolId?: string });
-  constructor(
-    params: string | { clientId?: string; userPoolId?: string; identityPoolId?: string }
-  ) {
+  constructor(params: { clientId: string; userPoolId: string; identityPoolId?: string }) {
     const region = 'eu-west-2';
     this.client = new CognitoIdentityProvider({
       region,
     });
-    this.fedClient = new CognitoIdentityClient({
-      region,
-    });
-    this.clientId = params instanceof Object ? params.clientId : params;
-    this.userPoolId = params instanceof Object ? params.userPoolId : undefined;
-    this.identityPoolId = params instanceof Object ? params.identityPoolId : undefined;
+    this.clientId = params.clientId;
+    this.userPoolId = params.userPoolId;
+    this.identityPoolId = params.identityPoolId;
+    if (params.identityPoolId) {
+      this.fedClient = new CognitoIdentityClient({
+        region,
+      });
+    }
   }
 
   /**
   Creates a new password for a user.
   @param username - Username (usually an email address).
   @param password - Password associated with this username.
-  @param new_password - New password for this username.
+  @param newPassword - New password for this username.
   @returns A boolean indicating the success of the password update.
   */
   async changePassword(username: string, password: string, newPassword: string) {
@@ -144,7 +136,7 @@ export class Auth {
      *
      * @param username - Username (usually an email address).
      * @param password - Password associated with this username.
-     * @param confirmation_code - Confirmation code sent to the user's email.
+     * @param confirmationCode - Confirmation code sent to the user's email.
      * @returns A boolean indicating the success of the password reset.
      */
     if (!this.clientId) throw new MissingIdError('Missing client ID');
@@ -163,14 +155,15 @@ export class Auth {
 
   async getTokens(param: UsernamePassword | RefreshToken): Promise<Tokens> {
     /**
-     * A user gets their tokens (refresh_token, access_token, and id_token).
+     * A user gets their tokens (refreshToken, accessToken, and idToken).
+     * The password from params never abandons the user's machine.
      *
      * @param username - Username (usually an email address).
      * @param password - Password associated with this username.
      *                   OR
-     * @param refresh_token - Refresh token to use.
-     * @returns Tokens - Object containing the refresh_token, access_token, and id_token.
-     *                   { "refresh_token": string, "access_token": string, "id_token": string }
+     * @param refreshToken - Refresh token to use.
+     * @returns Tokens - Object containing the refreshToken, accessToken, and idToken.
+     *                   { "refreshToken": string, "accessToken": string, "idToken": string }
      */
     if ('username' in param && 'password' in param) {
       const { username, password } = param;
@@ -181,22 +174,31 @@ export class Auth {
   }
 
   private async getTokensWithPair(username: string, password: string): Promise<Tokens> {
-    try {
-      const response = await this.initiateAuthFlow(username, password);
-      const result = response.AuthenticationResult;
-      return {
-        refreshToken: result?.RefreshToken ?? '',
-        accessToken: result?.AccessToken ?? '',
-        idToken: result?.IdToken ?? '',
-      };
-    } catch (err) {
-      if (err instanceof UnauthorizedException)
-        throw new UnauthorizedError(
-          'Username and/or Password are incorrect. Could not get tokens',
-          err
-        );
-      else throw err;
-    }
+    const authenticationDetails = new AuthenticationDetails({
+      Username: username,
+      Password: password,
+    });
+    const pool = new CognitoUserPool({ UserPoolId: this.userPoolId, ClientId: this.clientId! });
+    const cognitoUser = new CognitoUser({ Username: username, Pool: pool });
+    cognitoUser.setAuthenticationFlowType('USER_SRP_AUTH');
+    return new Promise<Tokens>((resolve, reject) => {
+      cognitoUser.authenticateUser(authenticationDetails, {
+        onSuccess: function (result) {
+          resolve({
+            accessToken: result.getAccessToken().getJwtToken(),
+            idToken: result.getIdToken().getJwtToken(),
+            refreshToken: result.getRefreshToken().getToken(),
+          });
+        },
+        onFailure: function (err) {
+          if (err.name === 'NotAuthorizedException') {
+            reject(new UnauthorizedError(err.message, err));
+          } else {
+            reject(err);
+          }
+        },
+      });
+    });
   }
 
   private async getTokensFromRefresh(refreshToken: string): Promise<Tokens> {
@@ -216,7 +218,10 @@ export class Auth {
         idToken: result?.IdToken ?? '',
       };
     } catch (err) {
-      throw err instanceof NotAuthorizedException ? new UnauthorizedError(err.message, err) : err;
+      if (err instanceof Error) {
+        throw err.name === 'NotAuthorizedException' ? new UnauthorizedError(err.message, err) : err;
+      }
+      throw err;
     }
   }
 
@@ -228,7 +233,10 @@ export class Auth {
      * @returns A string containing the federatedId.
      */
     if (!this.userPoolId) throw new MissingIdError('Missing user pool ID');
-    if (!this.identityPoolId) throw new MissingIdError('Missing federated pool ID');
+    if (!this.fedClient)
+      throw new MissingIdError(
+        'Identity Pool ID is not provided. Create a new Auth object using identityPoolId'
+      );
     try {
       const response = await this.fedClient.send(
         new GetIdCommand({
@@ -259,6 +267,10 @@ export class Auth {
      *                   { "AccessKeyId": string, "SecretKey": string, "SessionToken": string, "Expiration": string }
      */
     if (!this.userPoolId) throw new MissingIdError('Missing user pool ID');
+    if (!this.fedClient)
+      throw new MissingIdError(
+        'Identity Pool ID is not provided. Create a new Auth object using identityPoolId'
+      );
     try {
       const response = await this.fedClient.send(
         new GetCredentialsForIdentityCommand({
@@ -310,7 +322,7 @@ export class Auth {
   //   /**
   //   Revokes all of the access tokens generated by the specified refresh token.
   //   After the token is revoked, the user cannot use the revoked token.
-  //   @param refresh_token - Refresh token to be revoked.
+  //   @param refreshToken - Refresh token to be revoked.
   //   @returns A boolean indicating the success of the revocation.
   //   */
   //   const response = await this.clientUnsigned.revokeToken({

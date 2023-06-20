@@ -11,11 +11,12 @@ const username = process.env['USER']!;
 const password = process.env['PASSWORD']!;
 const password2 = process.env['PASSWORD2']!;
 const userPoolId = process.env['USER_POOL_ID']!;
+const userPoolId2 = process.env['USER_POOL_ID2']!;
 const federatedPoolId = process.env['FEDERATED_POOL_ID']!;
-const access = new Auth(clientId);
+const access = new Auth({ clientId, userPoolId });
 const poolAccess = new Auth({
   clientId: clientId2,
-  userPoolId: userPoolId,
+  userPoolId: userPoolId2,
   identityPoolId: federatedPoolId,
 });
 
@@ -59,6 +60,11 @@ describe('Federated Credentials', () => {
   });
   test('Get federated id fails', async () => {
     await expect(poolAccess.getFederatedId('idToken')).rejects.toThrow();
+  });
+  test('Get federated id with NO identityPoolId fails', async () => {
+    const tokens = await access.getTokens({ username, password });
+    const idToken = tokens.idToken;
+    await expect(access.getFederatedId(idToken)).rejects.toThrow();
   });
 
   test('Get credentials passes', async () => {
