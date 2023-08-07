@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'unicorn', 'sonarjs', 'jest', 'promise'],
+  plugins: ['@typescript-eslint', 'unicorn', 'sonarjs', 'vitest', 'promise'],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
@@ -10,8 +10,7 @@ module.exports = {
     'prettier',
     'plugin:unicorn/all',
     'plugin:sonarjs/recommended',
-    'plugin:jest/recommended',
-    'plugin:jest/style',
+    'plugin:vitest/all',
     'plugin:promise/recommended',
   ],
   rules: {
@@ -28,6 +27,12 @@ module.exports = {
     'unicorn/import-index': ['error', { ignoreImports: true }],
     'unicorn/filename-case': ['error', { case: 'camelCase' }],
     'sonarjs/no-duplicate-string': ['error', { threshold: 5 }],
+    'vitest/prefer-each': 'off',
+    'vitest/prefer-lowercase-title': 'off',
+    'vitest/require-to-throw-message': 'off',
+    'vitest/no-conditional-expect': 'off',
+    'vitest/no-conditional-in-test': 'off',
+    'vitest/no-conditional-tests': 'off',
   },
   parserOptions: {
     project: ['./tsconfig.json', './tests/tsconfig.json', './bin/tsconfig.json'],

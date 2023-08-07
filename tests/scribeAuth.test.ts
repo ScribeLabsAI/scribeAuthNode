@@ -1,7 +1,7 @@
-import { HttpRequest } from '@aws-sdk/protocol-http';
-import { describe, expect, test } from '@jest/globals';
 import { Auth, Tokens } from '@scribelabsai/auth';
+import { HttpRequest } from '@smithy/protocol-http';
 import * as dotenv from 'dotenv';
+import { describe, expect, it } from 'vitest';
 
 dotenv.config();
 
@@ -21,53 +21,53 @@ const poolAccess = new Auth({
 });
 
 describe('Get tokens', () => {
-  test('Username and password passes', async () => {
+  it('Username and password passes', async () => {
     const tokens = await access.getTokens({ username, password });
     expect(assertTokens(tokens)).toBeTruthy();
   });
-  test('Wrong username fails', async () => {
-    await expect(access.getTokens({ username: 'username', password })).rejects.toThrow();
+  it('Wrong username fails', async () => {
+    await expect(() => access.getTokens({ username: 'username', password })).rejects.toThrowError();
   });
-  test('Wrong password fails', async () => {
-    await expect(access.getTokens({ username, password: 'password' })).rejects.toThrow();
+  it('Wrong password fails', async () => {
+    await expect(() => access.getTokens({ username, password: 'password' })).rejects.toThrowError();
   });
 
-  test('Empty username fails', async () => {
-    await expect(access.getTokens({ username: '', password })).rejects.toThrow();
+  it('Empty username fails', async () => {
+    await expect(() => access.getTokens({ username: '', password })).rejects.toThrowError();
   });
-  test('Empty password fails', async () => {
-    await expect(access.getTokens({ username, password: '' })).rejects.toThrow();
+  it('Empty password fails', async () => {
+    await expect(() => access.getTokens({ username, password: '' })).rejects.toThrowError();
   });
-  test('Empty username and password fails', async () => {
-    await expect(access.getTokens({ username: '', password: '' })).rejects.toThrow();
+  it('Empty username and password fails', async () => {
+    await expect(() => access.getTokens({ username: '', password: '' })).rejects.toThrowError();
   });
-  test('RefreshToken passes', async () => {
+  it('RefreshToken passes', async () => {
     const refreshToken = await getRefreshToken();
     const tokens = await access.getTokens({ refreshToken });
     expect(assertTokens(tokens)).toBeTruthy();
   });
-  test('Wrong refreshToken fails', async () => {
-    await expect(access.getTokens({ refreshToken: 'refresh_token' })).rejects.toThrow();
+  it('Wrong refreshToken fails', async () => {
+    await expect(() => access.getTokens({ refreshToken: 'refresh_token' })).rejects.toThrowError();
   });
 });
 
 describe('Federated Credentials', () => {
-  test('Get federated id passes', async () => {
+  it('Get federated id passes', async () => {
     const tokens = await poolAccess.getTokens({ username, password: password2 });
     const idToken = tokens.idToken;
     const federatedId = await poolAccess.getFederatedId(idToken);
     expect(federatedId).toBeDefined();
   });
-  test('Get federated id fails', async () => {
-    await expect(poolAccess.getFederatedId('idToken')).rejects.toThrow();
+  it('Get federated id fails', async () => {
+    await expect(() => poolAccess.getFederatedId('idToken')).rejects.toThrowError();
   });
-  test('Get federated id with NO identityPoolId fails', async () => {
+  it('Get federated id with NO identityPoolId fails', async () => {
     const tokens = await access.getTokens({ username, password });
     const idToken = tokens.idToken;
-    await expect(access.getFederatedId(idToken)).rejects.toThrow();
+    await expect(() => access.getFederatedId(idToken)).rejects.toThrowError();
   });
 
-  test('Get credentials passes', async () => {
+  it('Get credentials passes', async () => {
     const tokens = await poolAccess.getTokens({ username, password: password2 });
     const idToken = tokens.idToken;
     const federatedId = await poolAccess.getFederatedId(idToken);
@@ -78,15 +78,15 @@ describe('Federated Credentials', () => {
     expect(credentials.SessionToken).toBeDefined();
     expect(credentials.Expiration).toBeDefined();
   });
-  test('Get credentials fails', async () => {
+  it('Get credentials fails', async () => {
     const tokens = await poolAccess.getTokens({ username, password: password2 });
     const idToken = tokens.idToken;
-    await expect(poolAccess.getFederatedCredentials('id', idToken)).rejects.toThrow();
+    await expect(() => poolAccess.getFederatedCredentials('id', idToken)).rejects.toThrowError();
   });
 });
 
 describe('Get Signature for requests', () => {
-  test('Passes', async () => {
+  it('Passes', async () => {
     const tokens = await poolAccess.getTokens({ username, password: password2 });
     const idToken = tokens.idToken;
     const federatedId = await poolAccess.getFederatedId(idToken);
@@ -104,9 +104,9 @@ describe('Get Signature for requests', () => {
 
 // RevokeToken is not working yet and we're working on it.
 // describe('Revoke', () => {
-//   test('Real RefreshToken and passes', async () => {
+//   it('Real RefreshToken and passes', async () => {
 //     const refreshToken = await getRefreshToken();
-//     expect(await access.revokeRefreshToken(refreshToken)).toBeTruthy();
+//     await expect(() => access.revokeRefreshToken(refreshToken)).toBeTruthy();
 //   });
 // });
 
