@@ -37,5 +37,5 @@
     "skipLibCheck": true /* Skip type checking of declaration files. */,
     "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
   },
-  "exclude": ["tests/**/*", "dist/**/*", "bin/**/*"]
+  "exclude": ["tests/**/*", "dist/**/*", "bin/**/*", "vitest.config.ts"]
 }

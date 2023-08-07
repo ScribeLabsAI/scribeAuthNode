@@ -11,8 +11,8 @@ import {
   CognitoIdentityProvider,
   InitiateAuthCommandOutput,
 } from '@aws-sdk/client-cognito-identity-provider';
-import { HttpRequest } from '@aws-sdk/protocol-http';
-import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { HttpRequest } from '@smithy/protocol-http';
+import { SignatureV4 } from '@smithy/signature-v4';
 import { AuthenticationDetails, CognitoUser, CognitoUserPool } from 'amazon-cognito-identity-js';
 import { MissingIdError, TooManyRequestsError, UnauthorizedError, UnknownError } from './errors.js';
 
