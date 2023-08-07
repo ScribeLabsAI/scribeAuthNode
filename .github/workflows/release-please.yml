@@ -16,7 +16,7 @@ jobs:
       - uses: google-github-actions/release-please-action@v3
         with:
           release-type: node
-          package-name: '@scribelabsai/types'
+          package-name: '@scribelabsai/auth'
           include-v-in-tag: false
           token: ${{ secrets.PATFORRELEASE }}
 
