@@ -52,6 +52,6 @@
     "aws-sdk": "^2.1379.0",
     "commander": "^11.0.0",
     "dotenv": "^16.0.3",
-    "eslint-plugin-vitest": "^0.2.8"
+    "eslint-plugin-vitest": "^0.3.1"
   }
 }
