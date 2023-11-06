@@ -27,3 +27,9 @@ jobs:
         run: npm run build:lib
       - name: Run tests
         run: npm t
+        env:
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          USER: ${{ secrets.USER }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          USER_POOL_ID: ${{ secrets.USER_POOL_ID }}
+          FEDERATED_POOL_ID: ${{ secrets.FEDERATED_POOL_ID }}
