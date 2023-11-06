@@ -6,17 +6,14 @@ import { describe, expect, it } from 'vitest';
 dotenv.config();
 
 const clientId = process.env['CLIENT_ID']!;
-const clientId2 = process.env['CLIENT_ID2']!;
 const username = process.env['USER']!;
 const password = process.env['PASSWORD']!;
-const password2 = process.env['PASSWORD2']!;
 const userPoolId = process.env['USER_POOL_ID']!;
-const userPoolId2 = process.env['USER_POOL_ID2']!;
 const federatedPoolId = process.env['FEDERATED_POOL_ID']!;
 const access = new Auth({ clientId, userPoolId });
 const poolAccess = new Auth({
-  clientId: clientId2,
-  userPoolId: userPoolId2,
+  clientId: clientId,
+  userPoolId: userPoolId,
   identityPoolId: federatedPoolId,
 });
 
@@ -53,7 +50,7 @@ describe('Get tokens', () => {
 
 describe('Federated Credentials', () => {
   it('Get federated id passes', async () => {
-    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const tokens = await poolAccess.getTokens({ username, password });
     const idToken = tokens.idToken;
     const federatedId = await poolAccess.getFederatedId(idToken);
     expect(federatedId).toBeDefined();
@@ -68,7 +65,7 @@ describe('Federated Credentials', () => {
   });
 
   it('Get credentials passes', async () => {
-    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const tokens = await poolAccess.getTokens({ username, password });
     const idToken = tokens.idToken;
     const federatedId = await poolAccess.getFederatedId(idToken);
     const credentials = await poolAccess.getFederatedCredentials(federatedId, idToken);
@@ -79,7 +76,7 @@ describe('Federated Credentials', () => {
     expect(credentials.Expiration).toBeDefined();
   });
   it('Get credentials fails', async () => {
-    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const tokens = await poolAccess.getTokens({ username, password });
     const idToken = tokens.idToken;
     await expect(() => poolAccess.getFederatedCredentials('id', idToken)).rejects.toThrowError();
   });
@@ -87,7 +84,7 @@ describe('Federated Credentials', () => {
 
 describe('Get Signature for requests', () => {
   it('Passes', async () => {
-    const tokens = await poolAccess.getTokens({ username, password: password2 });
+    const tokens = await poolAccess.getTokens({ username, password });
     const idToken = tokens.idToken;
     const federatedId = await poolAccess.getFederatedId(idToken);
     const credentials = await poolAccess.getFederatedCredentials(federatedId, idToken);
