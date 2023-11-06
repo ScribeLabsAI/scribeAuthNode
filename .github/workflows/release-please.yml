@@ -6,6 +6,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
+  packages: write
 
 name: release-please
 
@@ -14,10 +16,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: google-github-actions/release-please-action@v3
+        id: release
         with:
           release-type: node
           package-name: '@scribelabsai/auth'
           include-v-in-tag: false
           token: ${{ secrets.PATFORRELEASE }}
-
-          
+      - name: Clone
+        if: steps.release.outputs.release_created
+        uses: actions/checkout@v4
+      - name: Use Node.js 18.x
+        if: steps.release.outputs.release_created
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          registry-url: 'https://registry.npmjs.org/'
+          scope: '@scribelabsai'
+      - name: Install deps
+        if: steps.release.outputs.release_created
+        run: npm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build source
+        if: steps.release.outputs.release_created
+        run: npm run build:lib && npm run build:bin
+      - name: Publish
+        if: steps.release.outputs.release_created
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
