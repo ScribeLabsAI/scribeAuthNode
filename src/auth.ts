@@ -10,11 +10,24 @@ import {
 import {
   CognitoIdentityProvider,
   InitiateAuthCommandOutput,
+  CodeMismatchException,
+  ExpiredCodeException,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { HttpRequest } from '@smithy/protocol-http';
 import { SignatureV4 } from '@smithy/signature-v4';
-import { AuthenticationDetails, CognitoUser, CognitoUserPool } from 'amazon-cognito-identity-js';
-import { MissingIdError, TooManyRequestsError, UnauthorizedError, UnknownError } from './errors.js';
+import {
+  AuthenticationDetails,
+  ClientMetadata,
+  CognitoUser,
+  CognitoUserPool,
+} from 'amazon-cognito-identity-js';
+import {
+  MFAError,
+  MissingIdError,
+  TooManyRequestsError,
+  UnauthorizedError,
+  UnknownError,
+} from './errors.js';
 
 export interface UsernamePassword {
   username: string;
@@ -29,6 +42,12 @@ export interface Tokens {
   refreshToken: string;
   accessToken: string;
   idToken: string;
+}
+
+export interface Challenge {
+  challengeName: string;
+  challengeParameters: unknown;
+  user: CognitoUser;
 }
 
 export interface Credentials {
@@ -153,7 +172,7 @@ export class Auth {
     }
   }
 
-  async getTokens(param: UsernamePassword | RefreshToken): Promise<Tokens> {
+  async getTokens(param: UsernamePassword | RefreshToken): Promise<Tokens | Challenge> {
     /**
      * A user gets their tokens (refreshToken, accessToken, and idToken).
      * The password from params never abandons the user's machine.
@@ -164,6 +183,8 @@ export class Auth {
      * @param refreshToken - Refresh token to use.
      * @returns Tokens - Object containing the refreshToken, accessToken, and idToken.
      *                   { "refreshToken": string, "accessToken": string, "idToken": string }
+     * @returns Challenge - Object containing the challengeName, challengeParameters, and user.
+     *                      { "challengeName": string, "challengeParameters": unknown, "user": CognitoUser}
      */
     if ('username' in param && 'password' in param) {
       const { username, password } = param;
@@ -173,7 +194,7 @@ export class Auth {
     }
   }
 
-  private async getTokensWithPair(username: string, password: string): Promise<Tokens> {
+  private async getTokensWithPair(username: string, password: string): Promise<Tokens | Challenge> {
     const authenticationDetails = new AuthenticationDetails({
       Username: username,
       Password: password,
@@ -181,7 +202,7 @@ export class Auth {
     const pool = new CognitoUserPool({ UserPoolId: this.userPoolId, ClientId: this.clientId! });
     const cognitoUser = new CognitoUser({ Username: username, Pool: pool });
     cognitoUser.setAuthenticationFlowType('USER_SRP_AUTH');
-    return new Promise<Tokens>((resolve, reject) => {
+    return new Promise<Tokens | Challenge>((resolve, reject) => {
       cognitoUser.authenticateUser(authenticationDetails, {
         onSuccess: function (result) {
           resolve({
@@ -191,10 +212,21 @@ export class Auth {
           });
         },
         onFailure: function (err) {
-          if (err.name === 'NotAuthorizedException') {
+          if (err instanceof NotAuthorizedException) {
             reject(new UnauthorizedError(err.message, err));
+          }
+          reject(err);
+        },
+        totpRequired: function (challengeName, challengeParameters: unknown) {
+          if (challengeName === 'SOFTWARE_TOKEN_MFA') {
+            const challenge: Challenge = {
+              challengeName,
+              challengeParameters,
+              user: cognitoUser,
+            };
+            resolve(challenge);
           } else {
-            reject(err);
+            reject(new MFAError('Challenge name is incorrect'));
           }
         },
       });
@@ -221,6 +253,76 @@ export class Auth {
       if (err instanceof Error) {
         throw err.name === 'NotAuthorizedException' ? new UnauthorizedError(err.message, err) : err;
       }
+      throw err;
+    }
+  }
+
+  async respondToAuthChallengeMfa(
+    user: CognitoUser,
+    code: string,
+    challengeParameters: unknown
+  ): Promise<Tokens> {
+    /**
+     * Respond to an MFA auth challenge with a code generated from an auth app (e.g. Authy).
+     * @param user - Cognito user.
+     * @param code - Code generated from the auth app.
+     * @param challengeParameters - ChallengeParameters from Challenge.
+     * @returns Tokens - Object containing the refreshToken, accessToken, and idToken.
+     *                   { "refreshToken": string, "accessToken": string, "idToken": string }
+     */
+    try {
+      const result = await this.respondToMfaChallenge(user, code, challengeParameters);
+      if (result) {
+        return result;
+      } else {
+        throw new UnauthorizedError('Could not retrieve tokens');
+      }
+    } catch (err) {
+      if (err instanceof CodeMismatchException) {
+        throw new MFAError('Wrong MFA code');
+      }
+      if (err instanceof ExpiredCodeException) {
+        throw new MFAError('Expired MFA code');
+      }
+      if (err instanceof TooManyRequestsException) {
+        throw new TooManyRequestsError('Too many requests. Try again later');
+      }
+      throw err;
+    }
+  }
+
+  private async respondToMfaChallenge(
+    user: CognitoUser,
+    code: string,
+    challengeParameters: unknown
+  ) {
+    try {
+      return new Promise<Tokens>((resolve, reject) => {
+        user.sendMFACode(
+          code,
+          {
+            onSuccess: function (result) {
+              resolve({
+                accessToken: result.getAccessToken().getJwtToken(),
+                idToken: result.getIdToken().getJwtToken(),
+                refreshToken: result.getRefreshToken().getToken(),
+              });
+            },
+            onFailure: function (err) {
+              if (err instanceof NotAuthorizedException) {
+                reject(new UnauthorizedError(err.message, err));
+              } else {
+                console.log(err);
+                reject(err);
+              }
+            },
+          },
+          'SOFTWARE_TOKEN_MFA',
+          challengeParameters as ClientMetadata
+        );
+      });
+    } catch (err) {
+      console.log(err);
       throw err;
     }
   }
