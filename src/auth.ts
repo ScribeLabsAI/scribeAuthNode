@@ -46,7 +46,9 @@ export interface Tokens {
 
 export interface Challenge {
   challengeName: string;
-  challengeParameters: unknown;
+  challengeParameters: {
+    FRIENDLY_DEVICE_NAME: string;
+  };
   user: CognitoUser;
 }
 
@@ -184,7 +186,7 @@ export class Auth {
      * @returns Tokens - Object containing the refreshToken, accessToken, and idToken.
      *                   { "refreshToken": string, "accessToken": string, "idToken": string }
      * @returns Challenge - Object containing the challengeName, challengeParameters, and user.
-     *                      { "challengeName": string, "challengeParameters": unknown, "user": CognitoUser}
+     *                      { "challengeName": string, "challengeParameters": { "FRIENDLY_DEVICE_NAME": string }, "user": CognitoUser }
      */
     if ('username' in param && 'password' in param) {
       const { username, password } = param;
@@ -217,7 +219,10 @@ export class Auth {
           }
           reject(err);
         },
-        totpRequired: function (challengeName, challengeParameters: unknown) {
+        totpRequired: function (
+          challengeName,
+          challengeParameters: Challenge['challengeParameters']
+        ) {
           if (challengeName === 'SOFTWARE_TOKEN_MFA') {
             const challenge: Challenge = {
               challengeName,
@@ -260,7 +265,7 @@ export class Auth {
   async respondToAuthChallengeMfa(
     user: CognitoUser,
     code: string,
-    challengeParameters: unknown
+    challengeParameters: Challenge['challengeParameters']
   ): Promise<Tokens> {
     /**
      * Respond to an MFA auth challenge with a code generated from an auth app (e.g. Authy).
@@ -294,7 +299,7 @@ export class Auth {
   private async respondToMfaChallenge(
     user: CognitoUser,
     code: string,
-    challengeParameters: unknown
+    challengeParameters: Challenge['challengeParameters']
   ) {
     try {
       return new Promise<Tokens>((resolve, reject) => {
