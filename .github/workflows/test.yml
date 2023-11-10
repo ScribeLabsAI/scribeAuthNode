@@ -30,6 +30,8 @@ jobs:
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           USER: ${{ secrets.USER }}
+          USER2: ${{ secrets.USER2 }}
           PASSWORD: ${{ secrets.PASSWORD }}
+          OTPCODE: ${{ secrets.OTPCODE }}
           USER_POOL_ID: ${{ secrets.USER_POOL_ID }}
           FEDERATED_POOL_ID: ${{ secrets.FEDERATED_POOL_ID }}
