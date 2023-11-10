@@ -1,8 +1,17 @@
-import { Auth, Tokens } from '@scribelabsai/auth';
+import {
+  Auth,
+  Challenge,
+  MFAError,
+  MissingFieldError,
+  MissingIdError,
+  Tokens,
+  UnauthorizedError,
+} from '@scribelabsai/auth';
 import { HttpRequest } from '@smithy/protocol-http';
 import * as dotenv from 'dotenv';
 import { describe, expect, it } from 'vitest';
 import { authenticator } from 'otplib';
+import { setTimeout } from 'node:timers/promises';
 
 dotenv.config();
 
@@ -20,44 +29,46 @@ const poolAccess = new Auth({
   identityPoolId: federatedPoolId,
 });
 
-const mfaActivatedError = 'challenge instead of tokens';
-
 describe('Get tokens', () => {
   it('Username and password passes', async () => {
     const tokens = await access.getTokens({ username, password });
-    if ('refreshToken' in tokens && 'idToken' in tokens && 'accessToken' in tokens) {
-      expect(assertTokens(tokens)).toBeTruthy();
-    } else {
-      throw new Error(mfaActivatedError);
-    }
+    expect(assertTokens(tokens)).toBeTruthy();
   });
   it('Wrong username fails', async () => {
-    await expect(() => access.getTokens({ username: 'username', password })).rejects.toThrow();
+    await expect(() => access.getTokens({ username: 'username', password })).rejects.toThrow(
+      UnauthorizedError
+    );
   });
   it('Wrong password fails', async () => {
-    await expect(() => access.getTokens({ username, password: 'password' })).rejects.toThrow();
+    await expect(() => access.getTokens({ username, password: 'password' })).rejects.toThrow(
+      UnauthorizedError
+    );
   });
 
   it('Empty username fails', async () => {
-    await expect(() => access.getTokens({ username: '', password })).rejects.toThrow();
+    await expect(() => access.getTokens({ username: '', password })).rejects.toThrow(
+      MissingFieldError
+    );
   });
   it('Empty password fails', async () => {
-    await expect(() => access.getTokens({ username, password: '' })).rejects.toThrow();
+    await expect(() => access.getTokens({ username, password: '' })).rejects.toThrow(
+      MissingFieldError
+    );
   });
   it('Empty username and password fails', async () => {
-    await expect(() => access.getTokens({ username: '', password: '' })).rejects.toThrow();
+    await expect(() => access.getTokens({ username: '', password: '' })).rejects.toThrow(
+      MissingFieldError
+    );
   });
   it('RefreshToken passes', async () => {
     const refreshToken = await getRefreshToken();
     const tokens = await access.getTokens({ refreshToken });
-    if ('refreshToken' in tokens && 'idToken' in tokens && 'accessToken' in tokens) {
-      expect(assertTokens(tokens)).toBeTruthy();
-    } else {
-      throw new Error(mfaActivatedError);
-    }
+    expect(assertTokens(tokens)).toBeTruthy();
   });
   it('Wrong refreshToken fails', async () => {
-    await expect(() => access.getTokens({ refreshToken: 'refresh_token' })).rejects.toThrow();
+    await expect(() => access.getTokens({ refreshToken: 'refresh_token' })).rejects.toThrow(
+      UnauthorizedError
+    );
   });
 });
 
@@ -69,19 +80,19 @@ describe('Federated Credentials', () => {
       const federatedId = await poolAccess.getFederatedId(idToken);
       expect(federatedId).toBeDefined();
     } else {
-      throw new Error(mfaActivatedError);
+      expect(isTokens(tokens)).toBeTruthy();
     }
   });
   it('Get federated id fails', async () => {
-    await expect(() => poolAccess.getFederatedId('idToken')).rejects.toThrow();
+    await expect(() => poolAccess.getFederatedId('idToken')).rejects.toThrow(UnauthorizedError);
   });
   it('Get federated id with NO identityPoolId fails', async () => {
     const tokens = await access.getTokens({ username, password });
     if ('idToken' in tokens) {
       const idToken = tokens.idToken;
-      await expect(() => access.getFederatedId(idToken)).rejects.toThrow();
+      await expect(() => access.getFederatedId(idToken)).rejects.toThrow(MissingIdError);
     } else {
-      throw new Error(mfaActivatedError);
+      expect(isTokens(tokens)).toBeTruthy();
     }
   });
 
@@ -91,22 +102,26 @@ describe('Federated Credentials', () => {
       const idToken = tokens.idToken;
       const federatedId = await poolAccess.getFederatedId(idToken);
       const credentials = await poolAccess.getFederatedCredentials(federatedId, idToken);
-      expect(credentials).toBeDefined();
       expect(credentials.AccessKeyId).toBeDefined();
       expect(credentials.SecretKey).toBeDefined();
       expect(credentials.SessionToken).toBeDefined();
       expect(credentials.Expiration).toBeDefined();
     } else {
-      throw new Error(mfaActivatedError);
+      expect(isTokens(tokens)).toBeTruthy();
     }
   });
   it('Get credentials fails', async () => {
     const tokens = await poolAccess.getTokens({ username, password });
     if ('idToken' in tokens) {
       const idToken = tokens.idToken;
-      await expect(() => poolAccess.getFederatedCredentials('id', idToken)).rejects.toThrow();
+      await expect(() =>
+        poolAccess.getFederatedCredentials(
+          'eu-west-2:00a1b222-3333-444c-5ddd-000000000000',
+          idToken
+        )
+      ).rejects.toThrow(UnauthorizedError);
     } else {
-      throw new Error(mfaActivatedError);
+      expect(isTokens(tokens)).toBeTruthy();
     }
   });
 });
@@ -127,7 +142,7 @@ describe('Get Signature for requests', () => {
       const signature = await poolAccess.getSignatureForRequest(request, credentials);
       expect(signature).toBeDefined();
     } else {
-      throw new Error(mfaActivatedError);
+      expect(isTokens(tokens)).toBeTruthy();
     }
   });
 });
@@ -140,7 +155,7 @@ describe('Get tokens MFA', () => {
       expect(challenge.challengeName).toBeDefined();
       expect(challenge.challengeParameters).toBeDefined();
     } else {
-      throw new Error('no MFA challenge found');
+      expect(isTokens(challenge)).toBeFalsy();
     }
   });
 
@@ -148,9 +163,9 @@ describe('Get tokens MFA', () => {
     'get tokens with username and password successfully',
     async () => {
       const challenge = await access.getTokens({ username: username2, password });
-      await sleep(61_000);
-      const code = authenticator.generate(otp);
       if ('user' in challenge && 'challengeParameters' in challenge) {
+        await setTimeout(61_000);
+        const code = authenticator.generate(otp);
         const tokens = await access.respondToAuthChallengeMfa(
           challenge.user,
           code,
@@ -158,7 +173,7 @@ describe('Get tokens MFA', () => {
         );
         expect(assertTokens(tokens)).toBeTruthy();
       } else {
-        throw new Error('no MFA challenge found');
+        expect(isTokens(challenge)).toBeFalsy();
       }
     },
     { timeout: 70_000 }
@@ -167,14 +182,10 @@ describe('Get tokens MFA', () => {
   it(
     'get tokens with refresh token successfully',
     async () => {
-      await sleep(61_000);
+      await setTimeout(61_000);
       const refreshToken = await getRefreshTokenWithMFA();
       const tokens = await access.getTokens({ refreshToken });
-      if ('refreshToken' in tokens && 'idToken' in tokens && 'accessToken' in tokens) {
-        expect(assertTokens(tokens)).toBeTruthy();
-      } else {
-        throw new Error(mfaActivatedError);
-      }
+      expect(assertTokens(tokens)).toBeTruthy();
     },
     { timeout: 70_000 }
   );
@@ -185,9 +196,9 @@ describe('Get tokens MFA', () => {
     if ('user' in challenge && 'challengeParameters' in challenge) {
       await expect(() =>
         access.respondToAuthChallengeMfa(challenge.user, code, challenge.challengeParameters)
-      ).rejects.toThrow();
+      ).rejects.toThrow(MFAError);
     } else {
-      throw new Error('no MFA challenge found');
+      expect(isTokens(challenge)).toBeFalsy();
     }
   });
 
@@ -196,13 +207,13 @@ describe('Get tokens MFA', () => {
     async () => {
       const challenge = await access.getTokens({ username: username2, password });
       const code = authenticator.generate(otp);
-      await sleep(61_000);
+      await setTimeout(61_000);
       if ('user' in challenge && 'challengeParameters' in challenge) {
         await expect(() =>
           access.respondToAuthChallengeMfa(challenge.user, code, challenge.challengeParameters)
-        ).rejects.toThrow();
+        ).rejects.toThrow(MFAError);
       } else {
-        throw new Error('no MFA challenge found');
+        expect(isTokens(challenge)).toBeFalsy();
       }
     },
     { timeout: 70_000 }
@@ -217,15 +228,18 @@ describe('Get tokens MFA', () => {
 //   });
 // });
 
-function assertTokens(tokens: Tokens): boolean {
-  return (
-    !!tokens.accessToken &&
-    !!tokens.idToken &&
-    !!tokens.refreshToken &&
-    tokens.accessToken !== tokens.idToken &&
-    tokens.accessToken !== tokens.refreshToken &&
-    tokens.idToken !== tokens.refreshToken
-  );
+function assertTokens(tokens: Tokens | Challenge): boolean {
+  if ('accessToken' in tokens && 'idToken' in tokens && 'refreshToken' in tokens) {
+    return (
+      !!tokens.accessToken &&
+      !!tokens.idToken &&
+      !!tokens.refreshToken &&
+      tokens.accessToken !== tokens.idToken &&
+      tokens.accessToken !== tokens.refreshToken &&
+      tokens.idToken !== tokens.refreshToken
+    );
+  }
+  return false;
 }
 
 async function getRefreshToken() {
@@ -233,7 +247,7 @@ async function getRefreshToken() {
   if ('refreshToken' in tokens) {
     return tokens.refreshToken;
   }
-  throw new Error('use getRefreshTokenWithMFA() instead');
+  return '';
 }
 
 async function getRefreshTokenWithMFA() {
@@ -247,9 +261,9 @@ async function getRefreshTokenWithMFA() {
     );
     return response.refreshToken;
   }
-  throw new Error('use getRefreshToken() instead');
+  return '';
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function isTokens(tokens: Tokens | Challenge) {
+  return !!('accessToken' in tokens && 'idToken' in tokens && 'refreshToken' in tokens);
 }

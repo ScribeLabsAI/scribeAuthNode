@@ -4,14 +4,10 @@ import {
   GetCredentialsForIdentityCommand,
   GetCredentialsForIdentityCommandOutput,
   GetIdCommand,
-  NotAuthorizedException,
-  TooManyRequestsException,
 } from '@aws-sdk/client-cognito-identity';
 import {
   CognitoIdentityProvider,
   InitiateAuthCommandOutput,
-  CodeMismatchException,
-  ExpiredCodeException,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { HttpRequest } from '@smithy/protocol-http';
 import { SignatureV4 } from '@smithy/signature-v4';
@@ -23,6 +19,7 @@ import {
 } from 'amazon-cognito-identity-js';
 import {
   MFAError,
+  MissingFieldError,
   MissingIdError,
   TooManyRequestsError,
   UnauthorizedError,
@@ -119,9 +116,10 @@ export class Auth {
         return true;
       }
     } catch (err) {
-      if (err instanceof NotAuthorizedException) throw new UnauthorizedError(err.message, err);
-      else if (err instanceof MissingIdError) throw err;
-      else if (err instanceof TooManyRequestsException)
+      if (err instanceof Error && err.name === 'NotAuthorizedException')
+        throw new UnauthorizedError(err.message, err);
+      else if (err instanceof Error && err.name === 'MissingIdError') throw err;
+      else if (err instanceof Error && err.name === 'TooManyRequestsException')
         throw new TooManyRequestsError(err.message, err);
       else throw err;
     }
@@ -170,7 +168,9 @@ export class Auth {
       });
       return true;
     } catch (err) {
-      throw err instanceof NotAuthorizedException ? new UnauthorizedError(err.message, err) : err;
+      throw err instanceof Error && err.name === 'NotAuthorizedException'
+        ? new UnauthorizedError(err.message, err)
+        : err;
     }
   }
 
@@ -197,6 +197,7 @@ export class Auth {
   }
 
   private async getTokensWithPair(username: string, password: string): Promise<Tokens | Challenge> {
+    if (!username || !password) throw new MissingFieldError('Missing username or password');
     const authenticationDetails = new AuthenticationDetails({
       Username: username,
       Password: password,
@@ -214,10 +215,11 @@ export class Auth {
           });
         },
         onFailure: function (err) {
-          if (err instanceof NotAuthorizedException) {
+          if (err instanceof Error && err.name === 'NotAuthorizedException') {
             reject(new UnauthorizedError(err.message, err));
+          } else {
+            reject(err);
           }
-          reject(err);
         },
         totpRequired: function (
           challengeName,
@@ -283,13 +285,13 @@ export class Auth {
         throw new UnauthorizedError('Could not retrieve tokens');
       }
     } catch (err) {
-      if (err instanceof CodeMismatchException) {
+      if (err instanceof Error && err.name === 'CodeMismatchException') {
         throw new MFAError('Wrong MFA code');
       }
-      if (err instanceof ExpiredCodeException) {
+      if (err instanceof Error && err.name === 'ExpiredCodeException') {
         throw new MFAError('Expired MFA code');
       }
-      if (err instanceof TooManyRequestsException) {
+      if (err instanceof Error && err.name === 'TooManyRequestsException') {
         throw new TooManyRequestsError('Too many requests. Try again later');
       }
       throw err;
@@ -314,7 +316,7 @@ export class Auth {
               });
             },
             onFailure: function (err) {
-              if (err instanceof NotAuthorizedException) {
+              if (err instanceof Error && err.name === 'NotAuthorizedException') {
                 reject(new UnauthorizedError(err.message, err));
               } else {
                 console.log(err);
@@ -356,9 +358,9 @@ export class Auth {
       if (!response.IdentityId) throw new UnknownError('Could not retrieve federated id');
       return response.IdentityId;
     } catch (err) {
-      if (err instanceof NotAuthorizedException)
+      if (err instanceof Error && err.name === 'NotAuthorizedException')
         throw new UnauthorizedError('Could not retrieve federated id', err);
-      else if (err instanceof TooManyRequestsException)
+      else if (err instanceof Error && err.name === 'TooManyRequestsException')
         throw new TooManyRequestsError('Too many requests. Try again later');
       throw err;
     }
@@ -391,10 +393,12 @@ export class Auth {
         throw new UnknownError('Could not retrieve federated credentials');
       return response.Credentials;
     } catch (err) {
-      if (err instanceof NotAuthorizedException)
+      if (err instanceof Error && err.name === 'NotAuthorizedException')
         throw new UnauthorizedError('Could not retrieve federated credentials', err);
-      else if (err instanceof TooManyRequestsException)
+      else if (err instanceof Error && err.name === 'TooManyRequestsException')
         throw new TooManyRequestsError('Too many requests. Try again later');
+      else if (err instanceof Error && err.name === 'ResourceNotFoundException')
+        throw new UnauthorizedError('Federated id incorrect', err);
       throw err;
     }
   }
