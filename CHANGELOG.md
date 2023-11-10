@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/ScribeLabsAI/ScribeAuthNode/compare/1.4.0...1.4.1) (2023-11-10)
+
+
+### Bug Fixes
+
+* bin tsconfig ([1372bbc](https://github.com/ScribeLabsAI/ScribeAuthNode/commit/1372bbca939f958796efc8a71f897129ebf4d7d0))
+
 ## [1.4.0](https://github.com/ScribeLabsAI/ScribeAuthNode/compare/1.3.0...1.4.0) (2023-11-10)
 
 
